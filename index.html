@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小小科學農夫：聲光與星空島 | 國小五年級自然大冒險</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 圖標 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Tone.js 遊戲音效庫 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;800&family=Fredoka:wght@600;700&display=swap');
+    
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .font-game {
+      font-family: 'Fredoka', 'Noto Sans TC', cursive, sans-serif;
+    }
+
+    /* 農田地塊格子質感 */
+    .plot-locked {
+      background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+    }
+    
+    .plot-dry {
+      background: linear-gradient(135deg, #a16207 0%, #78350f 100%);
+      box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .plot-watered {
+      background: linear-gradient(135deg, #713f12 0%, #451a03 100%);
+      box-shadow: inset 0 -4px 0 #2e1065, 0 4px 8px rgba(30, 58, 138, 0.2);
+    }
+
+    /* 水滴與生長微動畫 */
+    @keyframes bounce-gentle {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-bounce-gentle {
+      animation: bounce-gentle 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7)); }
+      50% { filter: drop-shadow(0 0 16px rgba(56, 189, 248, 1)); }
+    }
+    .water-glow {
+      animation: pulse-glow 1.5s infinite;
+    }
+
+    /* 氣泡對話框箭頭 */
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 28px;
+      border-width: 10px 10px 0;
+      border-style: solid;
+      border-color: white transparent;
+      display: block;
+      width: 0;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-sky-200 via-amber-50 to-emerald-100 min-h-screen text-slate-800 flex flex-col justify-between">
+
+  <!-- 頂部遊戲狀態欄 -->
+  <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-amber-200 shadow-sm px-4 py-2 sm:px-6">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <!-- 標題與吉祥物 -->
+      <div class="flex items-center gap-2 cursor-pointer" onclick="openWelcomeModal()">
+        <span class="text-3xl animate-bounce-gentle">🌾</span>
+        <div>
+          <h1 class="font-game text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
+            小小科學農夫
+          </h1>
+          <p class="text-xs text-slate-500 hidden sm:block">國小五上自然：聲光世界 ✕ 神祕星空</p>
+        </div>
+      </div>
+
+      <!-- 資源指標 (水滴、金幣、已解鎖土地) -->
+      <div class="flex items-center gap-3 sm:gap-5 text-sm sm:text-base font-bold">
+        <!-- 水滴 -->
+        <div class="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200 shadow-inner">
+          <i class="fa-solid fa-droplet text-blue-500 animate-pulse"></i>
+          <span id="water-count">3</span>
+          <span class="text-xs text-blue-400 font-normal">滴水</span>
+        </div>
+
+        <!-- 陽光金幣 -->
+        <div class="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full border border-amber-200 shadow-inner">
+          <i class="fa-solid fa-coins text-amber-500"></i>
+          <span id="coin-count">60</span>
+          <span class="text-xs text-amber-500 font-normal">金幣</span>
+        </div>
+
+        <!-- 土地數 -->
+        <div class="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200 shadow-inner">
+          <i class="fa-solid fa-mountain-sun text-emerald-600"></i>
+          <span id="land-count">3</span>/9
+          <span class="text-xs text-emerald-500 font-normal">土地</span>
+        </div>
+
+        <!-- 音效開關 -->
+        <button id="sound-btn" onclick="toggleMute()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition" title="遊戲聲音切換">
+          <i class="fa-solid fa-volume-high" id="sound-icon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主舞台內容區 -->
+  <main class="max-w-6xl mx-auto w-full px-3 py-4 sm:p-6 flex-1 flex flex-col lg:flex-row gap-6">
+
+    <!-- 左半部：我的科學開心農場 -->
+    <section class="lg:w-5/12 flex flex-col gap-4">
+      <div class="bg-white/80 backdrop-blur rounded-3xl p-5 border-2 border-emerald-300 shadow-xl relative overflow-hidden flex flex-col">
+        <!-- 頂部資訊列 -->
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center gap-2">
+            <span class="p-2 bg-emerald-100 text-emerald-800 rounded-xl text-sm font-bold">
+              <i class="fa-solid fa-tractor mr-1"></i> 我的科學莊園
+            </span>
+            <span id="crop-harvest-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded-full hidden">
+              🌱 有作物可以收成囉！
+            </span>
+          </div>
+          <button onclick="openKnowledgeBook()" class="text-xs text-sky-600 hover:text-sky-800 underline font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-book-open"></i> 複習講義重點
+          </button>
+        </div>
+
+        <!-- 農夫小幫手提示 -->
+        <div class="relative bg-emerald-50/90 rounded-2xl p-3 border border-emerald-200 mb-4 flex items-center gap-3">
+          <div class="text-3xl shrink-0">👩‍🌾</div>
+          <div class="text-xs sm:text-sm text-emerald-950">
+            <p id="farmer-speech" class="font-medium">
+              快回答自然問題！答對可得<b>1滴水</b>與<b>金幣</b>。澆灌作物長大，或是積累金幣開墾新土地喔！
+            </p>
+          </div>
+        </div>
+
+        <!-- 3x3 農田網格系統 -->
+        <div class="bg-amber-900/10 p-3 sm:p-4 rounded-2xl border border-amber-900/20">
+          <div class="grid grid-cols-3 gap-3" id="plots-container">
+            <!-- 9 個地塊由 JS 動態生成 -->
+          </div>
+        </div>
+
+        <!-- 農場快捷操作列 -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+          <div class="text-slate-500">
+            💡 點選已開墾土地：<strong>播種</strong>、<strong>澆水</strong>或<strong>採收</strong>
+          </div>
+          <button onclick="buyPlotWithCoins()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-1.5 px-3 rounded-xl shadow-md transition transform active:scale-95 flex items-center gap-1.5 shrink-0">
+            <i class="fa-solid fa-plus-circle"></i> 開墾新土地 (需50金幣)
+          </button>
+        </div>
+      </div>
+
+      <!-- 生態小常識看板 (隨機輪播單元重點) -->
+      <div class="bg-sky-50/80 border border-sky-200 rounded-2xl p-3 text-xs text-sky-900 flex items-center gap-2 shadow-sm">
+        <i class="fa-solid fa-lightbulb text-amber-500 text-lg shrink-0"></i>
+        <div id="random-tip" class="font-medium">
+          單元提點：弦樂器的弦越短、越細、拉得越緊，音調就越高喔！
+        </div>
+      </div>
+    </section>
+
+    <!-- 右半部：考題挑戰與語音互動區 -->
+    <section class="lg:w-7/12 flex flex-col gap-4">
+      
+      <!-- 考題卡片 -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-sky-300 shadow-xl flex flex-col justify-between min-h-[460px] relative">
+        
+        <!-- 題型標籤與題號進度 -->
+        <div>
+          <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span id="quiz-category" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+                單元二：探索聲光世界
+              </span>
+              <span id="quiz-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                第 <span id="quiz-index">1</span> 題
+              </span>
+            </div>
+
+            <!-- 語音發音控制群 -->
+            <div class="flex items-center gap-1.5">
+              <!-- 本地語音朗讀 (Web Speech API) -->
+              <button id="btn-read-aloud" onclick="readQuestionAloud()" class="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl text-teal-700 text-xs font-semibold flex items-center gap-1.5 transition" title="朗讀題目">
+                <i class="fa-solid fa-volume-high"></i>
+                <span>語音讀題</span>
+              </button>
+
+              <!-- AI 導師深入解說語音 (Gemini TTS API) -->
+              <button id="btn-ai-voice" onclick="requestGeminiExplanationVoice()" class="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-purple-700 text-xs font-semibold flex items-center gap-1.5 transition" title="請自然老師語音講解">
+                <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i>
+                <span id="ai-voice-label">AI老師講解</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 題目文字 -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 mb-5">
+            <h2 id="quiz-question" class="text-base sm:text-lg font-bold text-slate-800 leading-relaxed">
+              題目載入中...
+            </h2>
+            <div id="quiz-supplement" class="text-xs text-slate-500 mt-2 hidden font-mono">
+              <!-- 補充圖解或小提示 -->
+            </div>
+          </div>
+
+          <!-- 四個選項按鈕 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="options-container">
+            <!-- 由程式碼產生選項 -->
+          </div>
+        </div>
+
+        <!-- 答題反饋與詳解區 (答題後展現) -->
+        <div id="feedback-panel" class="hidden mt-4 p-4 rounded-2xl border transition-all">
+          <div class="flex items-start gap-3">
+            <div id="feedback-icon" class="text-2xl mt-0.5"></div>
+            <div class="flex-1">
+              <h3 id="feedback-title" class="font-bold text-sm sm:text-base"></h3>
+              <p id="feedback-desc" class="text-xs sm:text-sm mt-1 leading-relaxed text-slate-700"></p>
+            </div>
+          </div>
+          <!-- 獲取的農場獎勵提醒 -->
+          <div id="reward-notice" class="mt-3 flex items-center justify-between text-xs font-bold pt-2 border-t border-slate-200">
+            <span class="text-emerald-700">🎁 獎勵：獲得 +1 滴水 ＆ +10 金幣！</span>
+            <button onclick="nextQuestion()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-xl font-bold transition flex items-center gap-1">
+              <span>下一題</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 底部切換單元與統計 -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div class="flex items-center gap-2">
+            <span>選擇題庫：</span>
+            <select id="unit-selector" onchange="changeUnit(this.value)" class="bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 font-medium text-slate-700">
+              <option value="all">混合全部（單元二 ＋ 單元三）</option>
+              <option value="unit2">單元二：探索聲光世界</option>
+              <option value="unit3">單元三：神祕的天空</option>
+            </select>
+          </div>
+          <div>
+            答對率：<span id="accuracy-stat" class="font-bold text-emerald-600">100%</span> (0/0)
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 彈出視窗 1：講義複習手冊 (依據傳送教材製作) -->
+  <div id="modal-book" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border-2 border-emerald-400 animate-in fade-in zoom-in duration-150">
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-4 text-white flex justify-between items-center">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap"></i> 五年級自然科學核心精華筆記
+        </h3>
+        <button onclick="closeKnowledgeBook()" class="text-white/80 hover:text-white text-xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-700 leading-relaxed">
+        
+        <div class="bg-amber-50 p-3.5 rounded-2xl border border-amber-200">
+          <h4 class="font-bold text-amber-900 text-base mb-1">📢 單元二：聲音的產生與傳播</h4>
+          <ul class="list-disc list-inside space-y-1 text-slate-700">
+            <li><strong>產生條件：</strong>物體必須「振動」才會發聲（聲帶、鼓面）。</li>
+            <li><strong>傳播介質：</strong>固體、液體、氣體皆可傳導；<strong>太空中為真空無法傳聲</strong>。</li>
+            <li><strong>聲音三要素：</strong>
+              <br>• <strong>音量（響度）：</strong>由「振幅」決定，單位分貝(dB)。
+              <br>• <strong>音調（高低）：</strong>由「頻率」決定，振動越快音調越高。
+              <br>• <strong>音色（音質）：</strong>由「波形」決定，辨認不同人或樂器。
+            </li>
+            <li><strong>樂器高低音規律（必考）：</strong>
+              <br>• 弦樂器：弦越短、越細、越緊 ➔ 聲音越高。
+              <br>• 管樂器：按孔越多、空氣柱越長 ➔ 聲音越低。
+              <br>• 打擊樂器：鐵琴片越短、越薄 ➔ 聲音越高。
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-sky-50 p-3.5 rounded-2xl border border-sky-200">
+          <h4 class="font-bold text-sky-900 text-base mb-1">🌈 單元二：光的特性與現象</h4>
+          <ul class="list-disc list-inside space-y-1 text-slate-700">
+            <li><strong>直線傳播（直射）：</strong>影子的形成、針孔成像、樹蔭下圓形光斑。</li>
+            <li><strong>光的反射：</strong>照鏡子、潛望鏡、後視鏡、看見不發光物體。</li>
+            <li><strong>光的折射：</strong>光斜射入不同介質偏折。如水中的筷子折斷、水池變淺、放大鏡。</li>
+            <li><strong>彩虹原理：</strong>陽光為白光，透過雨滴折射色散出七彩光。</li>
+            <li><strong>光速遠大於音速：</strong>先看見閃電，才聽到雷聲。</li>
+          </ul>
+        </div>
+
+        <div class="bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200">
+          <h4 class="font-bold text-indigo-900 text-base mb-1">⭐ 單元三：太陽運行、四季與星空</h4>
+          <ul class="list-disc list-inside space-y-1 text-slate-700">
+            <li><strong>太陽一日：</strong>東升西落（地球自轉），中午方位正南、仰角最高、影子最短。</li>
+            <li><strong>四季規律：</strong>
+              <br>• <strong>夏天(夏至)：</strong>東北升、西北落，中午仰角最高，影子最短，白晝最長。
+              <br>• <strong>冬天(冬至)：</strong>東南升、西南落，中午仰角最低，影子最長，白晝最短。
+              <br>• <strong>春秋分：</strong>正東升、正西落，晝夜等長。
+            </li>
+            <li><strong>太陽系成員：</strong>恆星（太陽）、行星（八大行星）、衛星（如月球）。</li>
+            <li><strong>北極星尋找法（5倍距離法）：</strong>
+              <br>• 北斗七星：天樞與天璇連線延長<strong>約5倍</strong>。
+              <br>• 仙后座(W形)：外側兩邊延伸交點與頂點連線延長<strong>約5倍</strong>。
+            </li>
+            <li><strong>星座盤用法：</strong>盤面面向自己，觀測北方時將「北」朝下對著自己。</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-200 text-right">
+        <button onclick="closeKnowledgeBook()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm">
+          記清楚了，繼續挑戰！
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈出視窗 2：歡迎與遊戲導覽 -->
+  <div id="modal-welcome" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-4 border-amber-300">
+      <div class="text-5xl mb-3">🌻</div>
+      <h3 class="text-xl font-black text-slate-800 mb-2">歡迎來到「科學農夫冒險」！</h3>
+      <p class="text-xs sm:text-sm text-slate-600 mb-4 leading-relaxed">
+        這是一個將<b>五年級自然段考核心考題</b>與<b>農田開墾灌溉</b>結合的遊戲！
+        <br>透過答對考題，你將獲得水源澆灌作物、獲取金幣拓荒！
+      </p>
+
+      <div class="bg-amber-50 rounded-2xl p-3 text-left text-xs text-amber-900 mb-5 space-y-1.5 font-medium">
+        <div class="flex items-center gap-2"><i class="fa-solid fa-droplet text-blue-500"></i> 答對題目：可獲得 1 滴珍貴純淨水 ＋ 10 陽光金幣</div>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-seedling text-emerald-500"></i> 點選土地：播種神秘種子、澆水催熟作物</div>
+        <div class="flex items-center gap-2"><i class="fa-solid fa-headphones text-purple-500"></i> 語音輔助：可點「語音讀題」或請「AI自然老師」開講！</div>
+      </div>
+
+      <button onclick="closeWelcomeModal()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-black text-base shadow-lg transition">
+        開始種田學自然！🚀
+      </button>
+    </div>
+  </div>
+
+  <!-- 頁尾版權與回饋 -->
+  <footer class="py-2.5 text-center text-xs text-slate-500 bg-white/50 border-t border-slate-200">
+    五年級自然科學遊戲學習平台 ‧ 涵蓋聲音、光學與天象星空 ‧ 支援自適應語音導讀
+  </footer>
+
+  <!-- 內部邏輯與題庫程式碼 -->
+  <script>
+    /* ========================================================
+       1. 題庫設計（嚴格依據上傳教材第1頁~第6頁所有重點）
+       ======================================================== */
+    const QUESTION_BANK = [
+      // --- 單元二：探索聲光世界 ---
+      {
+        id: 1,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '關於聲音的產生，下列哪一項敘述是完全正確的？',
+        options: [
+          '物體只要用力推動就會發出聲音',
+          '物體必須透過「振動」才會發出聲音',
+          '在太空中即使沒有介質也可以大聲說話傳給同學',
+          '聲音不需要任何介質就可以自由傳播'
+        ],
+        answer: 1,
+        explanation: '教材明載：物體必須透過「振動」才會發出聲音（例如聲帶或鼓面振動）；且太空為真空狀態，沒有介質無法傳遞聲音。'
+      },
+      {
+        id: 2,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '音樂課上，小明敲打鼓面時「用力越大」，鼓發出的聲音就越響亮。這是改變了聲音的哪一項要素？',
+        options: [
+          '音調（音高）',
+          '音量（響度）',
+          '音色（音質）',
+          '音速'
+        ],
+        answer: 1,
+        explanation: '音量（響度）是指聲音的大小，由振動的「振幅」決定。用力敲鼓會使鼓皮振動幅度加大，音量變大，單位為分貝(dB)。'
+      },
+      {
+        id: 3,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '彈奏吉他時，如果想要讓發出的聲音「音調變高」，應該怎麼做？（段考高頻題）',
+        options: [
+          '換一條更粗的吉他弦',
+          '把弦調鬆一點',
+          '手指按住吉他弦，讓發聲的弦變短',
+          '彈奏時更加用力'
+        ],
+        answer: 2,
+        explanation: '弦樂器高低音規律：弦越「短」、越「細」、拉得越「緊」，振動越快，發出的音調就越高！用力彈只會影響音量大小。'
+      },
+      {
+        id: 4,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '吹奏直笛時，如果手指把「所有的孔洞都按住」，吹出來的聲音通常會？',
+        options: [
+          '音調最高',
+          '音調最低',
+          '音量變成零分貝',
+          '音色變成鐵琴的聲音'
+        ],
+        answer: 1,
+        explanation: '管樂器（如直笛）規律：按住的孔洞越多，裡面的「空氣柱越長」，空氣振動越慢，聲音就「越低」。'
+      },
+      {
+        id: 5,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '在自然界中，看見影子的形成與大樹底下落下的圓形小光斑，是因為光的哪一種特性？',
+        options: [
+          '光的反射現象',
+          '光的折射現象',
+          '光在同種均勻介質中是直線傳播的',
+          '光的色散現象'
+        ],
+        answer: 2,
+        explanation: '影子的形成、針孔成像以及樹蔭下的圓形光斑，都是「光在均勻介質中直線傳播（直射）」的最佳例子。'
+      },
+      {
+        id: 6,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '筷子斜插進裝水的玻璃杯中，看起來好像「折斷」了一樣；水池看起來也比實際水深淺。這是因為？',
+        options: [
+          '光的反射',
+          '光的折射',
+          '光線被水吸收',
+          '音調頻率太快'
+        ],
+        answer: 1,
+        explanation: '當光從水斜射入空氣（不同介質）時，行進方向會偏折，這就是「光的折射」，造成筷子折斷感與水池視深變淺。'
+      },
+      {
+        id: 7,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '下大雨過後放晴，天空中常出現美麗的彩虹，這是什麼原因造成的？',
+        options: [
+          '天空的小水滴把太陽光直接吸收了',
+          '陽光（白光）透過空中小水滴的折射與色散，分散成七彩光帶',
+          '聲音在空氣中傳播產生的波形',
+          '太空中八大行星的反射光芒'
+        ],
+        answer: 1,
+        explanation: '陽光原本是由多種色光組成的白光，經由空氣中懸浮的小水滴折射與反射，分散成紅橙黃綠藍靛紫的彩虹光譜。'
+      },
+      {
+        id: 8,
+        unit: 'unit2',
+        category: '單元二：探索聲光世界',
+        question: '暴風雨時，我們常常「先看見閃電，過幾秒鐘才聽到雷聲」，這是為什麼？',
+        options: [
+          '打雷發生在高空，閃電發生在地面',
+          '眼睛長在耳朵前面',
+          '光的傳播速度（光速）遠大於聲音的傳播速度（音速）',
+          '雷聲遇到空氣中的小水滴反射回去了'
+        ],
+        answer: 2,
+        explanation: '教材特別強調速度比較：光速（約每秒30萬公里）遠大於音速（常溫下每秒約340公尺），因此閃電與打雷同時發生，但光會瞬間到達我們眼中。'
+      },
+
+      // --- 單元三：神祕的天空 ---
+      {
+        id: 9,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '在台灣地區，一年之中「中午時太陽仰角最高、竿影最短、且白天的時間最長」的節氣是？',
+        options: [
+          '春分',
+          '夏至',
+          '秋分',
+          '冬至'
+        ],
+        answer: 1,
+        explanation: '夏至當天太陽由東北方升起、西北方落下。正午時太陽仰角最高、影子最短，白天（白晝）時間也是全年中最長的一天！'
+      },
+      {
+        id: 10,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '冬至這一天，中午太陽的方位大約在什麼方向？影子又會指向哪裡？',
+        options: [
+          '太陽在正北方，影子指向正南方',
+          '太陽在正南方，影子指向正北方且影子最長',
+          '太陽在正上方頭頂，沒有影子',
+          '太陽在東南方，影子指向西南方'
+        ],
+        answer: 1,
+        explanation: '台灣地區中午太陽方位都在正南方。冬至時太陽仰角全年最低，因此投射在正北方的竿影會達到全年「最長」。'
+      },
+      {
+        id: 11,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '太陽系中，「自身能夠發光發熱」的星體稱為什麼？在太陽系中有幾顆？',
+        options: [
+          '行星，有八顆',
+          '衛星，只有一顆（月球）',
+          '恆星，只有一顆（太陽）',
+          '彗星，有成千上萬顆'
+        ],
+        answer: 2,
+        explanation: '自身能進行核融合反應、發光發熱的星體稱為「恆星」。太陽系中唯一的恆星就是「太陽」！八大行星則是繞著太陽公轉。'
+      },
+      {
+        id: 12,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '夜晚觀星時，夜空中的星星為什麼會有「東升西落」的規律現象？',
+        options: [
+          '因為星星自己繞著地球高速飛行',
+          '因為地球由西向東「自轉」的影響',
+          '因為太陽的引力把星星拉過去',
+          '因為北極星不停地在夜空變換位置'
+        ],
+        answer: 1,
+        explanation: '夜空中的群星與太陽一樣，東升西落的視運動都是因為「地球自西向東自轉」所造成的視現象。'
+      },
+      {
+        id: 13,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '（大考必考圖形題）想要利用「北斗七星」尋找正北方的北極星，應該如何連線延長？',
+        options: [
+          '將斗柄最後三顆星連線延長2倍',
+          '將天樞與天璇兩星連線，朝勺口方向延長約5倍距離',
+          '將勺底兩顆星連線延長10倍距離',
+          '隨便找一顆最亮的星連線即可'
+        ],
+        answer: 1,
+        explanation: '教材星空必考：利用北斗七星勺口的天樞與天璇兩星連線，朝勺口方向延長約「5倍距離」，就能找到幾乎不動的北極星！'
+      },
+      {
+        id: 14,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '如果秋天或冬天的夜晚看不到北斗七星，可以用形狀像「W」字母的哪個星座來找北極星？延長幾倍？',
+        options: [
+          '獵戶座，延長3倍',
+          '天鵝座，延長1倍',
+          '仙后座，外側兩邊延伸交點與頂點連線再延長約5倍距離',
+          '金牛座，延長7倍'
+        ],
+        answer: 2,
+        explanation: '形狀像W的「仙后座」是秋冬找北極星的好幫手！將兩翼延伸交點與中央星連線，朝開口方向延長約5倍，即可找到北極星。'
+      },
+      {
+        id: 15,
+        unit: 'unit3',
+        category: '單元三：神祕的天空',
+        question: '晚上拿著「星座盤」在戶外觀星時，正確的操作方法是哪一個？',
+        options: [
+          '將星座盤放在地上，腳踩在上面看',
+          '將盤面面向自己高舉，面向北方時將盤上的「北」朝下對著自己',
+          '不管面向哪裡，都把盤上的「東」朝上對著天空',
+          '正面朝下蓋在頭頂上'
+        ],
+        answer: 1,
+        explanation: '觀星時星座盤要盤面面向自己（舉起對照天空）。當面向正北方時，必須將盤上的「北」朝向下方對準自己，這時左右東南西方位才會跟真實星空完全一致！'
+      }
+    ];
+
+    /* ========================================================
+       2. 遊戲狀態管理 (農場土地、水資源、作物進度)
+       ======================================================== */
+    const CROP_TYPES = [
+      { name: '向日葵', iconSeed: '🌱', iconGrow: '🌿', iconMature: '🌻', coinValue: 25, reqWater: 2 },
+      { name: '發光玉米', iconSeed: '🌱', iconGrow: '🎋', iconMature: '🌽', coinValue: 30, reqWater: 2 },
+      { name: '彩虹南瓜', iconSeed: '🌱', iconGrow: '🍃', iconMature: '🎃', coinValue: 40, reqWater: 3 },
+      { name: '星空西瓜', iconSeed: '🌱', iconGrow: '🪴', iconMature: '🍉', coinValue: 50, reqWater: 3 }
+    ];
+
+    let gameState = {
+      water: 3,
+      coins: 60,
+      unlockedPlots: 3, // 預設解鎖3塊地
+      plots: [
+        // 0: 空地(未播種), 1: 幼苗, 2: 成長, 3: 成熟可收成
+        { state: 'growing', cropId: 0, currentWater: 1, reqWater: 2, stage: 1 },
+        { state: 'mature', cropId: 1, currentWater: 2, reqWater: 2, stage: 3 },
+        { state: 'empty', cropId: null, currentWater: 0, reqWater: 2, stage: 0 },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' }
+      ],
+      soundEnabled: true,
+      currentFilter: 'all',
+      activeQuestionIndex: 0,
+      totalAnswered: 0,
+      totalCorrect: 0,
+      currentQuestions: []
+    };
+
+    /* ========================================================
+       3. 音效合成系統 (Tone.js)
+       ======================================================== */
+    let synth, polySynth;
+    function initAudio() {
+      if (!synth && window.Tone) {
+        synth = new Tone.Synth({
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.2 }
+        }).toDestination();
+
+        polySynth = new Tone.PolySynth(Tone.Synth).toDestination();
+        polySynth.volume.value = -6;
+      }
+    }
+
+    function playSound(type) {
+      if (!gameState.soundEnabled) return;
+      try {
+        if (Tone.context.state !== 'running') {
+          Tone.start();
+        }
+        initAudio();
+        if (type === 'correct') {
+          polySynth.triggerAttackRelease(["C5", "E5", "G5"], "8n");
+        } else if (type === 'wrong') {
+          synth.triggerAttackRelease("C3", "4n");
+        } else if (type === 'water') {
+          polySynth.triggerAttackRelease(["F5", "A5", "C6"], "16n");
+        } else if (type === 'harvest') {
+          polySynth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "8n");
+        } else if (type === 'unlock') {
+          polySynth.triggerAttackRelease(["D5", "F#5", "A5"], "8n");
+        }
+      } catch (e) {
+        console.warn('音效播放提示:', e);
+      }
+    }
+
+    function toggleMute() {
+      gameState.soundEnabled = !gameState.soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      if (gameState.soundEnabled) {
+        icon.className = 'fa-solid fa-volume-high text-slate-700';
+        showMessage('🔔 音效已開啟');
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-rose-500';
+        showMessage('🔕 音效已靜音');
+      }
+    }
+
+    /* ========================================================
+       4. 畫面渲染：農場土地與作物狀態
+       ======================================================== */
+    function renderFarm() {
+      const container = document.getElementById('plots-container');
+      container.innerHTML = '';
+
+      let hasMatureCrop = false;
+
+      gameState.plots.forEach((plot, idx) => {
+        const plotEl = document.createElement('div');
+        plotEl.className = 'aspect-square rounded-2xl flex flex-col items-center justify-between p-2 relative cursor-pointer transition transform active:scale-95 select-none ';
+
+        if (plot.state === 'locked') {
+          plotEl.className += 'plot-locked opacity-75 hover:opacity-90';
+          plotEl.innerHTML = `
+            <div class="text-slate-500 text-xs mt-1 font-bold">第 ${idx + 1} 區</div>
+            <div class="flex flex-col items-center text-slate-500">
+              <i class="fa-solid fa-lock text-xl sm:text-2xl mb-1"></i>
+              <span class="text-[10px] font-bold">50金幣</span>
+            </div>
+            <div class="text-[10px] text-slate-500">點擊開墾</div>
+          `;
+          plotEl.onclick = () => unlockPlot(idx);
+        } else {
+          // 已解鎖土地 (可為 empty, growing, mature)
+          const isWatered = plot.currentWater > 0 && plot.state !== 'mature';
+          plotEl.className += isWatered ? 'plot-watered text-white' : 'plot-dry text-amber-100';
+
+          if (plot.state === 'empty') {
+            plotEl.innerHTML = `
+              <div class="text-[11px] opacity-75 font-bold">第 ${idx + 1} 塊沃土</div>
+              <div class="flex flex-col items-center my-auto">
+                <span class="text-2xl sm:text-3xl opacity-60">🕳️</span>
+                <span class="text-xs font-bold text-amber-200 mt-1">點擊播種</span>
+              </div>
+              <div class="text-[10px] opacity-70">需隨機種子</div>
+            `;
+            plotEl.onclick = () => plantSeed(idx);
+          } else if (plot.state === 'growing') {
+            const crop = CROP_TYPES[plot.cropId];
+            const icon = plot.stage === 1 ? crop.iconSeed : crop.iconGrow;
+            plotEl.innerHTML = `
+              <div class="w-full flex justify-between items-center text-[10px] px-1 font-bold">
+                <span>${crop.name}</span>
+                <span class="text-sky-300"><i class="fa-solid fa-droplet text-[9px]"></i> ${plot.currentWater}/${plot.reqWater}</span>
+              </div>
+              <div class="text-3xl sm:text-4xl animate-bounce-gentle my-auto">${icon}</div>
+              <div class="w-full bg-black/40 rounded-full h-2 overflow-hidden p-0.5">
+                <div class="bg-gradient-to-r from-sky-400 to-blue-500 h-full rounded-full transition-all duration-300" style="width: ${(plot.currentWater / plot.reqWater) * 100}%"></div>
+              </div>
+            `;
+            plotEl.onclick = () => waterPlot(idx);
+          } else if (plot.state === 'mature') {
+            hasMatureCrop = true;
+            const crop = CROP_TYPES[plot.cropId];
+            plotEl.innerHTML = `
+              <div class="w-full text-center text-[11px] font-bold bg-amber-400 text-amber-950 rounded-md py-0.5 shadow">
+                可採收！
+              </div>
+              <div class="text-4xl sm:text-5xl my-auto animate-pulse filter drop-shadow-md">
+                ${crop.iconMature}
+              </div>
+              <div class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                <span>+${crop.coinValue}</span>
+                <i class="fa-solid fa-coins text-amber-400 text-[10px]"></i>
+              </div>
+            `;
+            plotEl.onclick = () => harvestCrop(idx);
+          }
+        }
+
+        container.appendChild(plotEl);
+      });
+
+      // 頂部徽章與計數更新
+      document.getElementById('water-count').innerText = gameState.water;
+      document.getElementById('coin-count').innerText = gameState.coins;
+      document.getElementById('land-count').innerText = gameState.unlockedPlots;
+      
+      const harvestBadge = document.getElementById('crop-harvest-badge');
+      if (hasMatureCrop) {
+        harvestBadge.classList.remove('hidden');
+      } else {
+        harvestBadge.classList.add('hidden');
+      }
+    }
+
+    /* ========================================================
+       5. 農場動作：開墾、播種、澆水、採收
+       ======================================================== */
+    function unlockPlot(idx) {
+      if (gameState.coins >= 50) {
+        gameState.coins -= 50;
+        gameState.plots[idx] = { state: 'empty', cropId: null, currentWater: 0, reqWater: 2, stage: 0 };
+        gameState.unlockedPlots++;
+        playSound('unlock');
+        showMessage(`🎉 恭喜！成功開墾第 ${idx + 1} 塊科學農田！`);
+        setFarmerSpeech(`好棒！新的土地開墾好了，快點擊它種下科學作物吧！`);
+        renderFarm();
+      } else {
+        showMessage(`❌ 金幣不足！開墾新土地需要 50 金幣（目前有 ${gameState.coins} 金幣），請多回答問題賺金幣喔！`);
+      }
+    }
+
+    function buyPlotWithCoins() {
+      const nextLockedIndex = gameState.plots.findIndex(p => p.state === 'locked');
+      if (nextLockedIndex === -1) {
+        showMessage('🌾 太厲害了！你已經解鎖了農場的全部 9 塊沃土！');
+        return;
+      }
+      unlockPlot(nextLockedIndex);
+    }
+
+    function plantSeed(idx) {
+      const randomCropId = Math.floor(Math.random() * CROP_TYPES.length);
+      const crop = CROP_TYPES[randomCropId];
+      gameState.plots[idx] = {
+        state: 'growing',
+        cropId: randomCropId,
+        currentWater: 0,
+        reqWater: crop.reqWater,
+        stage: 1
+      };
+      playSound('water');
+      showMessage(`🌱 播種成功！種下了「${crop.name}」，快答題賺水澆水讓它長大！`);
+      setFarmerSpeech(`種子已經埋入土裡囉，現在需要 ${crop.reqWater} 滴純淨水才會開花結果！`);
+      renderFarm();
+    }
+
+    function waterPlot(idx) {
+      const plot = gameState.plots[idx];
+      if (plot.state !== 'growing') return;
+
+      if (gameState.water <= 0) {
+        showMessage('💧 水滴不夠用了！快點在右側答對自然考題獲得純淨水！');
+        setFarmerSpeech('水壺空空囉！只要在右邊答對一題，自然精靈就會送你 1 滴水！');
+        return;
+      }
+
+      gameState.water--;
+      plot.currentWater++;
+      playSound('water');
+
+      if (plot.currentWater >= plot.reqWater) {
+        plot.state = 'mature';
+        plot.stage = 3;
+        showMessage(`✨ 澆水充沛！「${CROP_TYPES[plot.cropId].name}」成熟了，點擊即可採收換金幣！`);
+        setFarmerSpeech(`哇！你看！吸收了科學養分的作物成熟了，快點採收它！`);
+      } else {
+        plot.stage = 2;
+        showMessage(`💧 澆水成功！還需要 ${plot.reqWater - plot.currentWater} 滴水就能收成！`);
+      }
+      renderFarm();
+    }
+
+    function harvestCrop(idx) {
+      const plot = gameState.plots[idx];
+      if (plot.state !== 'mature') return;
+
+      const crop = CROP_TYPES[plot.cropId];
+      gameState.coins += crop.coinValue;
+      playSound('harvest');
+      showMessage(`🧺 採收大成功！獲得了 ${crop.coinValue} 陽光金幣！`);
+      setFarmerSpeech(`收成真豐盛！有了這筆金幣，我們可以開墾更多土地或是種植更多作物囉！`);
+      
+      // 採收後回歸空地
+      gameState.plots[idx] = { state: 'empty', cropId: null, currentWater: 0, reqWater: 2, stage: 0 };
+      renderFarm();
+    }
+
+    function setFarmerSpeech(text) {
+      const speech = document.getElementById('farmer-speech');
+      speech.innerHTML = text;
+    }
+
+    /* ========================================================
+       6. 考題系統：題庫篩選、渲染、答題判定
+       ======================================================== */
+    function filterQuestions() {
+      if (gameState.currentFilter === 'all') {
+        gameState.currentQuestions = [...QUESTION_BANK];
+      } else {
+        gameState.currentQuestions = QUESTION_BANK.filter(q => q.unit === gameState.currentFilter);
+      }
+      // 隨機打亂順序
+      gameState.currentQuestions.sort(() => Math.random() - 0.5);
+      gameState.activeQuestionIndex = 0;
+    }
+
+    function changeUnit(val) {
+      gameState.currentFilter = val;
+      filterQuestions();
+      loadCurrentQuestion();
+      showMessage(`切換題庫模式成功！`);
+    }
+
+    function loadCurrentQuestion() {
+      if (gameState.currentQuestions.length === 0) {
+        filterQuestions();
+      }
+
+      const q = gameState.currentQuestions[gameState.activeQuestionIndex];
+      document.getElementById('quiz-category').innerText = q.category;
+      document.getElementById('quiz-index').innerText = (gameState.activeQuestionIndex + 1);
+      document.getElementById('quiz-question').innerText = q.question;
+
+      // 隱藏前次詳解
+      document.getElementById('feedback-panel').classList.add('hidden');
+
+      // 渲染選項
+      const optContainer = document.getElementById('options-container');
+      optContainer.innerHTML = '';
+
+      q.options.forEach((optText, optIdx) => {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left p-3.5 sm:p-4 rounded-2xl border-2 border-slate-200 hover:border-sky-400 bg-white hover:bg-sky-50/50 text-slate-700 text-sm sm:text-base font-semibold transition flex items-center gap-3 group active:scale-[0.99]';
+        btn.innerHTML = `
+          <span class="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center text-xs font-bold shrink-0 transition">
+            ${['A', 'B', 'C', 'D'][optIdx]}
+          </span>
+          <span class="flex-1">${optText}</span>
+        `;
+        btn.onclick = () => checkAnswer(optIdx, btn);
+        optContainer.appendChild(btn);
+      });
+
+      // 換題目時自動朗讀題目（若想提升沉浸感）
+    }
+
+    function checkAnswer(chosenIndex, btnElement) {
+      const q = gameState.currentQuestions[gameState.activeQuestionIndex];
+      const optContainer = document.getElementById('options-container');
+      const allButtons = optContainer.querySelectorAll('button');
+
+      // 禁用所有按鈕防止重複點擊
+      allButtons.forEach(b => b.disabled = true);
+
+      const isCorrect = (chosenIndex === q.answer);
+      gameState.totalAnswered++;
+
+      const feedbackPanel = document.getElementById('feedback-panel');
+      const feedbackTitle = document.getElementById('feedback-title');
+      const feedbackDesc = document.getElementById('feedback-desc');
+      const feedbackIcon = document.getElementById('feedback-icon');
+
+      feedbackPanel.classList.remove('hidden');
+
+      if (isCorrect) {
+        gameState.totalCorrect++;
+        playSound('correct');
+        btnElement.classList.remove('border-slate-200', 'bg-white');
+        btnElement.classList.add('border-emerald-500', 'bg-emerald-50', 'text-emerald-900');
+
+        // 給予遊戲獎勵
+        gameState.water += 1;
+        gameState.coins += 10;
+        renderFarm();
+
+        feedbackPanel.className = 'mt-4 p-4 rounded-2xl border border-emerald-300 bg-emerald-50/90 text-emerald-950';
+        feedbackIcon.innerHTML = '🎉';
+        feedbackTitle.innerText = '太棒了，完全答對！';
+        feedbackDesc.innerText = q.explanation;
+        setFarmerSpeech('答得太精彩了！純淨水滴 +1，金幣 +10，快去澆灌作物吧！');
+
+        // 自動用語音念出鼓勵
+        speakText('答對了！' + q.explanation);
+      } else {
+        playSound('wrong');
+        btnElement.classList.remove('border-slate-200', 'bg-white');
+        btnElement.classList.add('border-rose-500', 'bg-rose-50', 'text-rose-900');
+
+        // 標記正確答案
+        allButtons[q.answer].classList.remove('border-slate-200', 'bg-white');
+        allButtons[q.answer].classList.add('border-emerald-500', 'bg-emerald-100', 'text-emerald-900');
+
+        feedbackPanel.className = 'mt-4 p-4 rounded-2xl border border-rose-300 bg-rose-50/90 text-rose-950';
+        feedbackIcon.innerHTML = '💡';
+        feedbackTitle.innerText = `答錯了喔！正確答案是 (${['A','B','C','D'][q.answer]})`;
+        feedbackDesc.innerText = q.explanation;
+        setFarmerSpeech('別灰心！把這題記下來，下次考試一定會拿到滿分！');
+
+        speakText('答錯了喔，來聽聽解析：' + q.explanation);
+      }
+
+      // 更新統計
+      const rate = Math.round((gameState.totalCorrect / gameState.totalAnswered) * 100);
+      document.getElementById('accuracy-stat').innerText = `${rate}% (${gameState.totalCorrect}/${gameState.totalAnswered})`;
+    }
+
+    function nextQuestion() {
+      gameState.activeQuestionIndex++;
+      if (gameState.activeQuestionIndex >= gameState.currentQuestions.length) {
+        gameState.activeQuestionIndex = 0;
+        gameState.currentQuestions.sort(() => Math.random() - 0.5);
+        showMessage('🌟 恭喜你完成了一輪挑戰！題目已重新洗牌！');
+      }
+      loadCurrentQuestion();
+    }
+
+    /* ========================================================
+       7. 語音功能 1：Web Speech API 本地朗讀
+       ======================================================== */
+    function speakText(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel(); // 停止先前的發聲
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-TW';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1; // 稍微活潑的音調適合國小教學
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function readQuestionAloud() {
+      const q = gameState.currentQuestions[gameState.activeQuestionIndex];
+      const optLetters = ['A', 'B', 'C', 'D'];
+      let fullText = `${q.question}。選項有：`;
+      q.options.forEach((opt, i) => {
+        fullText += `${optLetters[i]}、${opt}。`;
+      });
+      speakText(fullText);
+      showMessage('🔊 正在為您朗讀題目與選項...');
+    }
+
+    /* ========================================================
+       8. 語音功能 2：Gemini TTS API 智慧自然老師講解
+       ======================================================== */
+    // PCM 16bit 轉 WAV 容器函式
+    function pcmToWav(pcmData, sampleRate) {
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+      const blockAlign = (numChannels * bitsPerSample) / 8;
+      const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+      const view = new DataView(buffer);
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + pcmData.length * 2, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, pcmData.length * 2, true);
+
+      for (let i = 0; i < pcmData.length; i++) {
+        view.setInt16(44 + i * 2, pcmData[i], true);
+      }
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    async function requestGeminiExplanationVoice() {
+      const q = gameState.currentQuestions[gameState.activeQuestionIndex];
+      const label = document.getElementById('ai-voice-label');
+      const btn = document.getElementById('btn-ai-voice');
+
+      btn.disabled = true;
+      label.innerText = 'AI老師思考中...';
+
+      const promptScript = `Say in a warm, enthusiastic Taiwanese teacher voice for an elementary 5th grader: 嗨！小朋友好！我是你的自然老師。這一題問的是：${q.question}。記得老師上課說過的關鍵概念：${q.explanation}。把這個重點記牢，考試一定沒問題！`;
+
+      const payload = {
+        contents: [{
+          parts: [{ text: promptScript }]
+        }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: "Puck" } // Puck 具備活潑親切的語調
+            }
+          }
+        },
+        model: "gemini-2.5-flash-preview-tts"
+      };
+
+      const apiKey = ""; // API 金鑰於 Canvas 執行時自動注入
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        const part = result?.candidates?.[0]?.content?.parts?.[0];
+        const audioData = part?.inlineData?.data;
+        const mimeType = part?.inlineData?.mimeType;
+
+        if (audioData && mimeType && mimeType.startsWith("audio/")) {
+          let sampleRate = 24000;
+          const match = mimeType.match(/rate=(\d+)/);
+          if (match && match[1]) {
+            sampleRate = parseInt(match[1], 10);
+          }
+
+          const pcmBuffer = base64ToArrayBuffer(audioData);
+          const pcm16 = new Int16Array(pcmBuffer);
+          const wavBlob = pcmToWav(pcm16, sampleRate);
+          const audioUrl = URL.createObjectURL(wavBlob);
+
+          const audio = new Audio(audioUrl);
+          audio.play();
+          showMessage('🎙️ 正在播放自然老師的語音教學！');
+        } else {
+          // 若 API 回傳缺少音訊，以內建語音作為堅固後備方案 (Fallback)
+          speakText(`小朋友你好，這一題的解題關鍵是：${q.explanation}`);
+          showMessage('已切換為備用精準語音播放解說');
+        }
+      } catch (err) {
+        console.error('Gemini TTS 呼叫異常:', err);
+        // 後備方案
+        speakText(`小朋友你好，這一題的重點是：${q.explanation}`);
+        showMessage('語音解說播放中');
+      } finally {
+        btn.disabled = false;
+        label.innerText = 'AI老師講解';
+      }
+    }
+
+    /* ========================================================
+       9. 提示訊息與彈出視窗輔助
+       ======================================================== */
+    let toastTimeout;
+    function showMessage(msg) {
+      let toast = document.getElementById('game-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'game-toast';
+        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-2xl z-50 pointer-events-none transition-all duration-300 transform opacity-0 translate-y-3';
+        document.body.appendChild(toast);
+      }
+      toast.innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-3');
+      }, 3000);
+    }
+
+    function openKnowledgeBook() {
+      document.getElementById('modal-book').classList.remove('hidden');
+    }
+
+    function closeKnowledgeBook() {
+      document.getElementById('modal-book').classList.add('hidden');
+    }
+
+    function openWelcomeModal() {
+      document.getElementById('modal-welcome').classList.remove('hidden');
+    }
+
+    function closeWelcomeModal() {
+      document.getElementById('modal-welcome').classList.add('hidden');
+    }
+
+    // 隨機輪播小提示
+    const TIPS = [
+      '單元二：管樂器按住的孔洞越多，空氣柱越長，聲音越低喔！',
+      '單元二：聲音在太空中無法傳播，因為太空中是真空沒有介質。',
+      '單元二：水中的筷子看似折斷是「光的折射」現象。',
+      '單元三：夏至那天中午，太陽仰角最高、竿影最短、白天最長！',
+      '單元三：找北極星時，利用北斗七星勺口天樞與天璇延長約「5倍」！',
+      '單元三：使用星座盤時，面向北方要把盤上的「北」朝下對著自己。'
+    ];
+
+    setInterval(() => {
+      const tipEl = document.getElementById('random-tip');
+      if (tipEl) {
+        const rand = TIPS[Math.floor(Math.random() * TIPS.length)];
+        tipEl.innerText = rand;
+      }
+    }, 10000);
+
+    /* ========================================================
+       10. 頁面初始化
+       ======================================================== */
+    window.onload = function () {
+      filterQuestions();
+      loadCurrentQuestion();
+      renderFarm();
+
+      // 監聽使用者首次點擊啟動 Tone.js AudioContext
+      document.body.addEventListener('click', () => {
+        if (window.Tone && Tone.context.state !== 'running') {
+          Tone.start();
+        }
+      }, { once: true });
+    };
+  </script>
+</body>
+</html>
