@@ -110,6 +110,11 @@
           <span class="text-xs text-emerald-500 font-normal">土地</span>
         </div>
 
+        <!-- 程式更新 / 重新整理按鈕 -->
+        <button id="refresh-btn" onclick="openResetModal()" class="w-9 h-9 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 transition transform active:rotate-180 duration-300 shadow-sm" title="更新遊戲與重整題庫">
+          <i class="fa-solid fa-arrows-rotate text-sm" id="refresh-icon"></i>
+        </button>
+
         <!-- 音效開關 -->
         <button id="sound-btn" onclick="toggleMute()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition" title="遊戲聲音切換">
           <i class="fa-solid fa-volume-high" id="sound-icon"></i>
@@ -269,18 +274,36 @@
   <!-- 彈出視窗 1：講義複習手冊 (依據傳送教材製作) -->
   <div id="modal-book" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
     <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border-2 border-emerald-400 animate-in fade-in zoom-in duration-150">
-      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-4 text-white flex justify-between items-center">
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-4 text-white flex justify-between items-center gap-2 flex-wrap">
         <h3 class="font-bold text-lg flex items-center gap-2">
           <i class="fa-solid fa-graduation-cap"></i> 五年級自然科學核心精華筆記
         </h3>
-        <button onclick="closeKnowledgeBook()" class="text-white/80 hover:text-white text-xl">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+        <!-- 頂部全手冊語音控制按鈕 -->
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="btn-read-all-book" onclick="readFullBookAloud()" class="px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border border-white/30" title="連續朗讀全部章節">
+            <i class="fa-solid fa-circle-play"></i>
+            <span>朗讀全部重點</span>
+          </button>
+          <button id="btn-stop-speech" onclick="stopAllSpeech()" class="px-2 py-1 bg-rose-500/80 hover:bg-rose-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition" title="停止語音">
+            <i class="fa-solid fa-circle-stop"></i>
+            <span>停止</span>
+          </button>
+          <button onclick="closeKnowledgeBook()" class="text-white/80 hover:text-white text-xl ml-1">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
-      <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-700 leading-relaxed">
+      <div class="p-5 overflow-y-auto space-y-4 text-sm text-slate-700 leading-relaxed" id="book-content-scroll">
         
-        <div class="bg-amber-50 p-3.5 rounded-2xl border border-amber-200">
-          <h4 class="font-bold text-amber-900 text-base mb-1">📢 單元二：聲音的產生與傳播</h4>
+        <!-- 單元二：聲音 -->
+        <div id="section-sound" class="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 transition duration-300">
+          <div class="flex justify-between items-center mb-1">
+            <h4 class="font-bold text-amber-900 text-base">📢 單元二：聲音的產生與傳播</h4>
+            <button onclick="readSectionSound()" class="px-2.5 py-1 bg-amber-200/70 hover:bg-amber-300 text-amber-900 rounded-lg text-xs font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
+              <i class="fa-solid fa-volume-high text-amber-700"></i>
+              <span>語音導讀</span>
+            </button>
+          </div>
           <ul class="list-disc list-inside space-y-1 text-slate-700">
             <li><strong>產生條件：</strong>物體必須「振動」才會發聲（聲帶、鼓面）。</li>
             <li><strong>傳播介質：</strong>固體、液體、氣體皆可傳導；<strong>太空中為真空無法傳聲</strong>。</li>
@@ -297,8 +320,15 @@
           </ul>
         </div>
 
-        <div class="bg-sky-50 p-3.5 rounded-2xl border border-sky-200">
-          <h4 class="font-bold text-sky-900 text-base mb-1">🌈 單元二：光的特性與現象</h4>
+        <!-- 單元二：光學 -->
+        <div id="section-light" class="bg-sky-50 p-3.5 rounded-2xl border border-sky-200 transition duration-300">
+          <div class="flex justify-between items-center mb-1">
+            <h4 class="font-bold text-sky-900 text-base">🌈 單元二：光的特性與現象</h4>
+            <button onclick="readSectionLight()" class="px-2.5 py-1 bg-sky-200/70 hover:bg-sky-300 text-sky-900 rounded-lg text-xs font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
+              <i class="fa-solid fa-volume-high text-sky-700"></i>
+              <span>語音導讀</span>
+            </button>
+          </div>
           <ul class="list-disc list-inside space-y-1 text-slate-700">
             <li><strong>直線傳播（直射）：</strong>影子的形成、針孔成像、樹蔭下圓形光斑。</li>
             <li><strong>光的反射：</strong>照鏡子、潛望鏡、後視鏡、看見不發光物體。</li>
@@ -308,8 +338,15 @@
           </ul>
         </div>
 
-        <div class="bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200">
-          <h4 class="font-bold text-indigo-900 text-base mb-1">⭐ 單元三：太陽運行、四季與星空</h4>
+        <!-- 單元三：天文星空 -->
+        <div id="section-sky" class="bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200 transition duration-300">
+          <div class="flex justify-between items-center mb-1">
+            <h4 class="font-bold text-indigo-900 text-base">⭐ 單元三：太陽運行、四季與星空</h4>
+            <button onclick="readSectionSky()" class="px-2.5 py-1 bg-indigo-200/70 hover:bg-indigo-300 text-indigo-900 rounded-lg text-xs font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
+              <i class="fa-solid fa-volume-high text-indigo-700"></i>
+              <span>語音導讀</span>
+            </button>
+          </div>
           <ul class="list-disc list-inside space-y-1 text-slate-700">
             <li><strong>太陽一日：</strong>東升西落（地球自轉），中午方位正南、仰角最高、影子最短。</li>
             <li><strong>四季規律：</strong>
@@ -327,8 +364,9 @@
         </div>
 
       </div>
-      <div class="p-3 bg-slate-50 border-t border-slate-200 text-right">
-        <button onclick="closeKnowledgeBook()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm">
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+        <span class="text-xs text-slate-500 font-medium">💡 點選每個單元旁的「語音導讀」，可以邊聽邊複習喔！</span>
+        <button onclick="closeKnowledgeBook()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition">
           記清楚了，繼續挑戰！
         </button>
       </div>
@@ -351,9 +389,28 @@
         <div class="flex items-center gap-2"><i class="fa-solid fa-headphones text-purple-500"></i> 語音輔助：可點「語音讀題」或請「AI自然老師」開講！</div>
       </div>
 
-      <button onclick="closeWelcomeModal()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-black text-base shadow-lg transition">
-        開始種田學自然！🚀
-      </button>
+  <!-- 彈出視窗 3：遊戲程式更新與重置確認 -->
+  <div id="modal-reset" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-4 border-amber-300 animate-in fade-in zoom-in duration-150">
+      <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <i class="fa-solid fa-arrows-rotate animate-spin-slow"></i>
+      </div>
+      <h3 class="text-lg font-black text-slate-800 mb-1">程式更新與遊戲重置</h3>
+      <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+        想重新整理題庫開始新挑戰，或是完全重新載入整個程式？
+      </p>
+
+      <div class="space-y-2">
+        <button onclick="resetGameSession()" class="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-shuffle"></i> 重新洗牌題庫與新局
+        </button>
+        <button onclick="reloadApplication()" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-right"></i> 重新載入整頁程式
+        </button>
+        <button onclick="closeResetModal()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-semibold text-xs transition mt-1">
+          取消
+        </button>
+      </div>
     </div>
   </div>
 
@@ -971,14 +1028,84 @@
     /* ========================================================
        7. 語音功能 1：Web Speech API 本地朗讀
        ======================================================== */
-    function speakText(text) {
+    function speakText(text, onEndCallback = null) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel(); // 停止先前的發聲
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'zh-TW';
       utterance.rate = 1.0;
       utterance.pitch = 1.1; // 稍微活潑的音調適合國小教學
+      if (onEndCallback) {
+        utterance.onend = onEndCallback;
+      }
       window.speechSynthesis.speak(utterance);
+    }
+
+    function stopAllSpeech() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      clearSectionHighlights();
+      showMessage('⏹️ 已停止語音播放');
+    }
+
+    function highlightSection(sectionId) {
+      clearSectionHighlights();
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.classList.add('ring-4', 'ring-emerald-400', 'shadow-lg');
+      }
+    }
+
+    function clearSectionHighlights() {
+      ['section-sound', 'section-light', 'section-sky'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.remove('ring-4', 'ring-emerald-400', 'shadow-lg');
+        }
+      });
+    }
+
+    function readSectionSound() {
+      highlightSection('section-sound');
+      const text = `單元二：聲音的產生與傳播。物體必須透過振動才會發出聲音，例如聲帶或鼓面振動。聲音需要固體、液體或氣體介質傳播，太空中是真空，無法傳聲。聲音三要素請牢記：第一，音量由振幅決定，單位分貝。第二，音調由頻率決定，振動越快音調越高。第三，音色由波形決定，用來分辨不同樂器。樂器高低音常考規律：弦樂器的弦越短、越細、拉得越緊，聲音越高；管樂器按孔越多，空氣柱越長，聲音越低；鐵琴片越短越薄，聲音越高。`;
+      speakText(text, () => clearSectionHighlights());
+      showMessage('🔊 正在為您朗讀「聲音的產生與傳播」重點');
+    }
+
+    function readSectionLight() {
+      highlightSection('section-light');
+      const text = `單元二：光的特性與現象。光的直線傳播現象包括影子的形成、針孔成像與樹蔭下的圓形光斑。光的反射現象有照鏡子、潛望鏡、汽車後視鏡。光的折射現象是指光斜射入不同介質時發生偏折，例如水中筷子看起來折斷、水池看起來變淺、還有放大鏡。彩虹的成因是白光透過雨後小水滴折射色散成七彩光。最後請記住：光速遠大於音速，所以會先看到閃電，才聽到雷聲。`;
+      speakText(text, () => clearSectionHighlights());
+      showMessage('🔊 正在為您朗讀「光的特性與現象」重點');
+    }
+
+    function readSectionSky() {
+      highlightSection('section-sky');
+      const text = `單元三：太陽運行、四季與星空。受地球自轉影響，太陽與星星皆東升西落。在台灣，中午太陽在正南方、仰角最高、影子最短。四季規律：夏至太陽東北升、西北落，中午仰角最高、影子最短、白晝最長；冬至太陽東南升、西南落，中午仰角最低、影子最長、白天最短；春秋分正東升正西落，晝夜等長。太陽系中只有太陽是恆星能發光發熱，八大行星繞行太陽。尋找北極星有兩種方法：北斗七星天樞與天璇連線延長約5倍；仙后座雙翼交點與頂點連線延長約5倍。使用星座盤時，面向北方請將盤上的北朝下對著自己。`;
+      speakText(text, () => clearSectionHighlights());
+      showMessage('🔊 正在為您朗讀「太陽運行與星空」重點');
+    }
+
+    function readFullBookAloud() {
+      showMessage('📖 開始全手冊重點連續導讀...');
+      highlightSection('section-sound');
+      const soundText = `現在開始五年級自然核心筆記導讀。第一部分，聲音的產生與傳播。物體必須振動才會發聲，太空中為真空無法傳聲。音量由振幅決定，音調由頻率決定，音色由波形決定。吉他弦越短、越細、越緊，聲音越高；直笛空氣柱越長，聲音越低。`;
+      
+      speakText(soundText, () => {
+        highlightSection('section-light');
+        const lightText = `第二部分，光的特性。光在均勻介質中直線傳播，形成影子與樹蔭光斑。光照射物體表面會反射，如鏡子與潛望鏡。光斜射入不同介質會折射，例如水中筷子折斷感與彩虹色散。光速遠大於音速，所以先看見閃電才聽到雷聲。`;
+        
+        speakText(lightText, () => {
+          highlightSection('section-sky');
+          const skyText = `第三部分，神祕的天空。太陽和星星因地球自轉而東升西落。夏至中午仰角最高、影子最短；冬至中午仰角最低、影子最長。太陽是太陽系唯一恆星。找北極星時，利用北斗七星或仙后座連線延長約5倍。使用星座盤觀測北方時，把北朝下對著自己。筆記導讀完畢！`;
+          
+          speakText(skyText, () => {
+            clearSectionHighlights();
+            showMessage('🎉 講義全部重點導讀完畢！');
+          });
+        });
+      });
     }
 
     function readQuestionAloud() {
@@ -1140,6 +1267,7 @@
 
     function closeKnowledgeBook() {
       document.getElementById('modal-book').classList.add('hidden');
+      stopAllSpeech();
     }
 
     function openWelcomeModal() {
@@ -1148,6 +1276,57 @@
 
     function closeWelcomeModal() {
       document.getElementById('modal-welcome').classList.add('hidden');
+    }
+
+    /* ========================================================
+       10. 程式更新與遊戲重置系統
+       ======================================================== */
+    function openResetModal() {
+      document.getElementById('modal-reset').classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+      document.getElementById('modal-reset').classList.add('hidden');
+    }
+
+    function resetGameSession() {
+      closeResetModal();
+      stopAllSpeech();
+
+      // 重置農場與物資
+      gameState.water = 3;
+      gameState.coins = 60;
+      gameState.unlockedPlots = 3;
+      gameState.plots = [
+        { state: 'growing', cropId: 0, currentWater: 1, reqWater: 2, stage: 1 },
+        { state: 'mature', cropId: 1, currentWater: 2, reqWater: 2, stage: 3 },
+        { state: 'empty', cropId: null, currentWater: 0, reqWater: 2, stage: 0 },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' },
+        { state: 'locked' }
+      ];
+
+      // 重置計分與洗牌題庫
+      gameState.totalAnswered = 0;
+      gameState.totalCorrect = 0;
+      filterQuestions();
+      loadCurrentQuestion();
+      renderFarm();
+
+      document.getElementById('accuracy-stat').innerText = '100% (0/0)';
+      setFarmerSpeech('遊戲已更新！題庫已全部洗牌，農場準備好迎接新的科學挑戰囉！');
+      playSound('unlock');
+      showMessage('🔄 遊戲狀態與題庫已更新！');
+    }
+
+    function reloadApplication() {
+      showMessage('⚡ 正在重新載入程式...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
     }
 
     // 隨機輪播小提示
